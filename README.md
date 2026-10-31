@@ -31,3 +31,46 @@ Abra `recalcular_volumes.ipynb` e execute a célula. O script lê as predições
 No arquivo `resumo_volume_por_modelo.csv`, `mean` é a média dos 11 resultados por amostra. `std_sample_ddof1` é o desvio-padrão amostral: usa divisor `n-1` (10 para as 11 amostras) e estima a variação com base na amostra. `std_population_ddof0` é o desvio-padrão populacional: usa divisor `n` (11) e trata as 11 amostras como o conjunto completo considerado. Os campos `ddof=1` e `ddof=0` indicam qual divisor foi usado.
 
 Os valores usam predições já salvas na pasta original. Não incluem predições novas do kernel que estava rodando em `LOO_3d_unet_backbones2`.
+
+## Métricas utilizadas e implementação
+
+As métricas são **IoU (Intersection over Union, ou Jaccard)** e **Dice/F-score**. Para cada classe, o código conta verdadeiros positivos (TP), falsos positivos (FP) e falsos negativos (FN), usando as máscaras discretas de predição e referência:
+
+- **IoU:** `(TP + smooth) / (TP + FP + FN + smooth)`.
+- **Dice/F-score (beta = 1):** `(2 × TP + smooth) / (2 × TP + FP + FN + smooth)`.
+
+O valor `smooth = 1e-5` evita divisão por zero. As métricas são calculadas para foreground; os campos `macro` são a média aritmética das pontuações de background e foreground. Os três modos de agregação descritos acima usam essas mesmas fórmulas, mudando apenas quando as contagens são agregadas ou quando as pontuações são calculadas.
+
+**Origem dos cálculos:** o notebook de treinamento/evaluação usa os objetos de métrica da biblioteca `segmentation_models_3D` (`IOUScore` e `FScore`, com `beta=1` para Dice). Já `recalcular_metricas_volume.py` **não importa nem chama essa biblioteca para calcular as métricas**: implementa diretamente as fórmulas acima em Python, contando TP/FP/FN com NumPy. A constante de suavização foi mantida em `1e-5` para corresponder à configuração da biblioteca.
+
+A reavaliação usa rótulos discretos `0/1` dos TIFFs salvos. Portanto, ela não recupera o cálculo sobre as probabilidades softmax do notebook: o README registra que os arquivos de probabilidade não foram salvos e que, para a média macro, os resultados são uma aproximação baseada nos rótulos discretos. As médias e os desvios-padrão entre amostras também são calculados diretamente pelo script com NumPy (`mean`; desvio amostral com `ddof=1`; populacional com `ddof=0`).
+## Significado das colunas dos CSVs
+
+### `metricas_volume_por_amostra.csv`
+
+- `model`: arquitetura (`resnet18`, `inceptionv3` ou `resunet`).
+- `sample`: amostra reservada para teste em cada rodada LOO.
+- `volume_foreground_iou`, `volume_foreground_dice`: IoU e Dice da classe foreground, calculados globalmente sobre todos os voxels do volume.
+- `pooled64_foreground_iou`, `pooled64_foreground_dice`: métricas de foreground após somar TP, FP e FN dos 64 patches. Como os patches cobrem o volume sem sobreposição, coincidem com as métricas globais do volume.
+- `mean64_foreground_iou`, `mean64_foreground_dice`: média aritmética das métricas de foreground calculadas separadamente em cada patch.
+- `volume_macro_iou`, `volume_macro_dice`: média entre as pontuações de background e foreground, calculadas globalmente no volume.
+- `pooled64_macro_iou`, `pooled64_macro_dice`: média entre as pontuações das duas classes após agregar as contagens dos 64 patches.
+- `mean64_macro_iou`, `mean64_macro_dice`: média aritmética, entre os 64 patches, das médias de classe calculadas em cada patch.
+- `patch_count`: número de patches da amostra (64).
+- `empty_foreground_patches`: quantos patches não têm voxels foreground na máscara de referência.
+- `voxels`: número total de voxels do volume.
+- `volume_shape`: dimensões do volume, na ordem Z×Y×X.
+- `prediction_rule`: regra usada para transformar a predição salva em rótulos `0/1`; as probabilidades softmax originais não foram salvas.
+- `reference_rule`: regra usada para binarizar a máscara de referência (`voxel > 0` é foreground).
+- `smooth`: constante de suavização usada nas métricas (`1e-5`).
+- `prediction_file`, `reference_file`: caminhos dos TIFFs de predição e máscara de referência usados no cálculo.
+
+### `resumo_volume_por_modelo.csv`
+
+- `model`: arquitetura avaliada.
+- `metric`: nome da métrica e do modo de agregação resumido; por exemplo, `volume_foreground_iou` ou `mean64_macro_dice`.
+- `n_samples`: número de amostras incluídas no resumo (11).
+- `mean`: média dos 11 valores dessa métrica.
+- `std_sample_ddof1`: desvio-padrão amostral; divide por `n-1` (10) e estima a variação a partir das amostras.
+- `std_population_ddof0`: desvio-padrão populacional; divide por `n` (11) e descreve a variação das 11 amostras consideradas como o conjunto completo.
+
