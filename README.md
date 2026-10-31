@@ -20,6 +20,27 @@ jupyter notebook
 
 Abra `recalcular_volumes.ipynb` e execute a célula. O script lê as predições em `/mnt/d/mestrado/notebooks/LOO_3d_unet_backbones/` e as máscaras em `/mnt/d/mestrado/notebooks/steel/stl/`.
 
+## Protocolo LOO CV e organização dos notebooks
+
+O experimento usa **Leave-One-Out Cross-Validation (LOO CV)** com 11 amostras (`03_09`, `04_09`, `06_06`, `07_06`, `07_09`, `09_06`, `11_06`, `22_08`, `23_08`, `28_08` e `29_08`). Em cada rodada, uma amostra inteira é separada como teste e as outras 10 são reunidas para treinamento. O código de preparação exclui explicitamente a pasta da amostra de teste (`createTrainLOO`). Os patches do conjunto restante são divididos para treinamento e validação; por exemplo, os notebooks ResNet18 usam `train_test_split` com 10% para validação. Ao final da rodada, o modelo faz predições na amostra que ficou de fora. O processo é repetido até cada amostra ter sido o teste uma vez. Assim, cada arquitetura tem 11 notebooks de experimento.
+
+Os dados são preparados em patches 3D de `64 × 64 × 64`. Nos notebooks originais, a avaliação de IoU e F-score recebe os patches de teste e as predições correspondentes; a reconstrução do volume é usada nas etapas de visualização/exportação. O script e os CSVs deste diretório comparam explicitamente métricas por patch, agregação das contagens dos 64 patches e cálculo sobre o volume completo, usando as predições TIFF já salvas.
+
+### Notebooks de experimento
+
+O nome do arquivo identifica a arquitetura e a amostra deixada de fora:
+
+- `resnet18/3D_Unet_steel_resnet18_<amostra>.ipynb`: U-Net 3D com backbone ResNet18.
+- `inceptionv3/3D_Unet_steel_inceptionv3_<amostra>.ipynb`: U-Net 3D com backbone InceptionV3.
+- `resunet/Unet-Resblock-<amostra>.ipynb`: U-Net 3D com blocos residuais (ResUNet).
+
+Substitua `<amostra>` por um dos 11 identificadores listados acima. Por exemplo, `3D_Unet_steel_resnet18_04_09.ipynb` treina e avalia a rodada em que `04_09` é a amostra de teste. Os notebooks de cada arquitetura seguem a mesma lógica LOO, com diferenças na arquitetura da rede e em alguns detalhes de treinamento.
+
+### Notebooks auxiliares e de métricas
+
+- `resnet18/ConverteResultadosparaInt8.ipynb`, `inceptionv3/ConverteResultadosparaInt8.ipynb` e `resunet/ConverteResultadosparaInt8.ipynb`: convertem/exportam os resultados de predição para TIFF de 8 bits usados pela reavaliação.
+- `resnet18/printSlices.ipynb`, `inceptionv3/printSlices.ipynb` e `resunet/printSlices.ipynb`: exibem fatias dos volumes e resultados para inspeção visual.
+- `recalcular_volumes.ipynb`: executa a reavaliação das métricas nos três modos de agregação documentados neste README; o cálculo fica em `recalcular_metricas_volume.py`.
 ## Arquivos
 
 - `metricas_volume_por_amostra.csv`: resultados por arquitetura e amostra, incluindo os três modos de agregação, seleção de classe e contagem de patches sem foreground.
@@ -73,4 +94,5 @@ A reavaliação usa rótulos discretos `0/1` dos TIFFs salvos. Portanto, ela nã
 - `mean`: média dos 11 valores dessa métrica.
 - `std_sample_ddof1`: desvio-padrão amostral; divide por `n-1` (10) e estima a variação a partir das amostras.
 - `std_population_ddof0`: desvio-padrão populacional; divide por `n` (11) e descreve a variação das 11 amostras consideradas como o conjunto completo.
+
 
