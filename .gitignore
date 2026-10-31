@@ -1,0 +1,8 @@
+# Keras serialized model files (keep out of Git)
+*.keras
+
+# Generated 3D prediction TIFFs exceed GitHub's per-file size limit
+**/3D_result/*.tif
+
+# Jupyter checkpoint copies
+**/.ipynb_checkpoints/
