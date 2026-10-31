@@ -24,6 +24,10 @@ Abra `recalcular_volumes.ipynb` e execute a célula. O script lê as predições
 
 - `metricas_volume_por_amostra.csv`: resultados por arquitetura e amostra, incluindo os três modos de agregação, seleção de classe e contagem de patches sem foreground.
 - `resumo_volume_por_modelo.csv`: média, desvio-padrão amostral (`ddof=1`) e populacional (`ddof=0`) entre as 11 amostras, para cada modo e seleção de classe.
-- `.gitignore`: contém a regra `*.keras` para manter os modelos Keras fora do Git.
+- `.gitignore`: ignora modelos `*.keras`, TIFFs gerados em `3D_result` e checkpoints do Jupyter.
+
+## Médias e desvios-padrão
+
+No arquivo `resumo_volume_por_modelo.csv`, `mean` é a média dos 11 resultados por amostra. `std_sample_ddof1` é o desvio-padrão amostral: usa divisor `n-1` (10 para as 11 amostras) e estima a variação com base na amostra. `std_population_ddof0` é o desvio-padrão populacional: usa divisor `n` (11) e trata as 11 amostras como o conjunto completo considerado. Os campos `ddof=1` e `ddof=0` indicam qual divisor foi usado.
 
 Os valores usam predições já salvas na pasta original. Não incluem predições novas do kernel que estava rodando em `LOO_3d_unet_backbones2`.
